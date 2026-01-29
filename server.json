@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.houtini-ai/google-knowledge-graph",
+  "description": "Search Google's Knowledge Graph for structured information about real-world entities",
+  "repository": {
+    "url": "https://github.com/houtini-ai/google-knowledge-graph-mcp",
+    "source": "github"
+  },
+  "version": "1.0.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@houtini/google-knowledge-graph-mcp",
+      "version": "1.0.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GOOGLE_KNOWLEDGE_GRAPH_API_KEY",
+          "description": "Google Knowledge Graph Search API key",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
