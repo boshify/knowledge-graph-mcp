@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -8,7 +8,6 @@ import {
 import { searchEntities, lookupEntities, SearchOptions } from './client.js';
 import express from 'express';
 import cors from 'cors';
-import { randomUUID } from 'crypto';
 
 const app = express();
 
@@ -16,7 +15,7 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-MCP-Session-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
@@ -24,7 +23,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Create MCP server with tool handlers
+// Store active transports by session ID
+const transports = new Map<string, SSEServerTransport>();
+
+// Create MCP server with handlers
 function createMCPServer() {
   const server = new Server(
     {
@@ -192,28 +194,58 @@ function createMCPServer() {
   return server;
 }
 
-// Create transport and server
-const transport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: () => randomUUID(),
-});
-
-const server = createMCPServer();
-server.connect(transport);
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'google-knowledge-graph-mcp' });
 });
 
-// MCP endpoint - handles both GET (SSE) and POST (messages)
-app.all('/mcp', async (req, res) => {
-  console.log(`${req.method} /mcp from:`, req.headers.origin || 'unknown');
+// SSE endpoint for MCP
+app.get('/sse', async (req, res) => {
+  const sessionId = Math.random().toString(36).substring(7);
+  console.log(`New SSE connection [${sessionId}] from:`, req.headers.origin || 'unknown');
+
   try {
-    await transport.handleRequest(req, res, req.body);
+    const server = createMCPServer();
+    const transport = new SSEServerTransport(`/message/${sessionId}`, res);
+
+    // Store transport for this session
+    transports.set(sessionId, transport);
+
+    await server.connect(transport);
+    console.log(`MCP server connected via SSE [${sessionId}]`);
+
+    // Clean up on close
+    req.on('close', () => {
+      console.log(`SSE connection closed [${sessionId}]`);
+      transports.delete(sessionId);
+    });
   } catch (error) {
-    console.error('Error handling MCP request:', error);
+    console.error(`Error setting up SSE connection [${sessionId}]:`, error);
+    transports.delete(sessionId);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Failed to establish SSE connection' });
+    }
+  }
+});
+
+// Message endpoint for client requests - route to appropriate transport
+app.post('/message/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  console.log(`Received message for session [${sessionId}]:`, JSON.stringify(req.body).substring(0, 100));
+
+  const transport = transports.get(sessionId);
+  if (!transport) {
+    console.error(`No transport found for session [${sessionId}]`);
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  try {
+    // Forward the message to the transport
+    await transport.handlePostMessage(req, res);
+  } catch (error) {
+    console.error(`Error handling message for session [${sessionId}]:`, error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to handle message' });
     }
   }
 });
@@ -299,6 +331,6 @@ app.post('/api/lookup', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Google Knowledge Graph MCP Server running on port ${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/health`);
-  console.log(`   MCP endpoint: http://localhost:${PORT}/mcp`);
+  console.log(`   SSE endpoint: http://localhost:${PORT}/sse`);
   console.log(`   REST API:     http://localhost:${PORT}/api/search`);
 });
