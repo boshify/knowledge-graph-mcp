@@ -17,7 +17,7 @@ Visit: https://railway.app
 3. Click **"New Variable"**
 4. Add:
    - **Key**: `GOOGLE_KNOWLEDGE_GRAPH_API_KEY`
-   - **Value**: `AIzaSyCKJtvb0DT4_-JA8tVBt8zkTTI0xWuMIzA`
+   - **Value**: `YOUR_GOOGLE_API_KEY_HERE`
 
 ### Step 4: Get Your URL
 - Railway will give you a public URL like: `https://knowledge-graph-mcp-production.up.railway.app`
