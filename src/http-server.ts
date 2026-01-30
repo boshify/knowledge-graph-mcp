@@ -200,15 +200,6 @@ app.get('/health', (req, res) => {
 app.get('/sse', async (req, res) => {
   console.log('New SSE connection from:', req.headers.origin || 'unknown');
 
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('X-Accel-Buffering', 'no');
-
-  res.flushHeaders();
-
   try {
     const server = createMCPServer();
     const transport = new SSEServerTransport('/message', res);
@@ -221,7 +212,9 @@ app.get('/sse', async (req, res) => {
     });
   } catch (error) {
     console.error('Error setting up SSE connection:', error);
-    res.end();
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to establish SSE connection' });
+    }
   }
 });
 
