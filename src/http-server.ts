@@ -10,21 +10,21 @@ import express from 'express';
 import cors from 'cors';
 
 const app = express();
-app.use(cors());
+
+// CORS configuration for Claude.ai
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'google-knowledge-graph-mcp' });
-});
-
-// SSE endpoint for MCP
-app.get('/sse', async (req, res) => {
-  console.log('New SSE connection established');
-
-  const transport = new SSEServerTransport('/message', res);
+// Create a single MCP server instance
+function createMCPServer() {
   const server = new Server(
     {
       name: 'google-knowledge-graph-mcp',
@@ -171,7 +171,6 @@ app.get('/sse', async (req, res) => {
               text: JSON.stringify(output, null, 2),
             },
           ],
-          isError: false,
         };
       }
 
@@ -189,14 +188,48 @@ app.get('/sse', async (req, res) => {
     }
   });
 
-  await server.connect(transport);
-  console.log('SSE transport connected');
+  return server;
+}
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'google-knowledge-graph-mcp' });
+});
+
+// SSE endpoint for MCP
+app.get('/sse', async (req, res) => {
+  console.log('New SSE connection from:', req.headers.origin || 'unknown');
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  res.flushHeaders();
+
+  try {
+    const server = createMCPServer();
+    const transport = new SSEServerTransport('/message', res);
+    await server.connect(transport);
+    console.log('MCP server connected via SSE');
+
+    // Keep connection alive
+    req.on('close', () => {
+      console.log('SSE connection closed');
+    });
+  } catch (error) {
+    console.error('Error setting up SSE connection:', error);
+    res.end();
+  }
 });
 
 // Message endpoint for client requests
 app.post('/message', async (req, res) => {
-  // This endpoint is handled by the SSE transport
-  res.status(200).send();
+  console.log('Received message:', JSON.stringify(req.body).substring(0, 200));
+  // The SSE transport handles this internally
+  res.status(202).json({ received: true });
 });
 
 // REST API endpoints as fallback
