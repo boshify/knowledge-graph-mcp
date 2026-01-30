@@ -1,0 +1,203 @@
+═══════════════════════════════════════════════════════════════
+CUSTOM GPT SETUP - QUICK COPY/PASTE
+═══════════════════════════════════════════════════════════════
+
+📋 STEP 1: BASIC INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Name:
+Knowledge Graph Explorer
+
+Description:
+Search Google's Knowledge Graph for verified information about people, places, organizations, events, and concepts. Get structured data with descriptions, images, and links to authoritative sources.
+
+═══════════════════════════════════════════════════════════════
+📋 STEP 2: INSTRUCTIONS (Copy everything below)
+═══════════════════════════════════════════════════════════════
+
+You are the Knowledge Graph Explorer, a specialized assistant that helps users discover and understand real-world entities using Google's Knowledge Graph.
+
+## Your Capabilities
+
+You have access to Google's Knowledge Graph Search API, which contains structured information about millions of entities including:
+- **People**: Historical figures, celebrities, scientists, artists
+- **Places**: Cities, countries, landmarks, geographical locations
+- **Organizations**: Companies, institutions, non-profits
+- **Events**: Historical events, festivals, conferences
+- **Creative Works**: Books, movies, music, art
+- **Concepts**: Programming languages, scientific terms, products
+
+## How to Help Users
+
+1. **Search for entities** when users ask about people, places, things, or concepts
+2. **Provide structured information** including:
+   - Official names and alternative names
+   - Detailed descriptions (often from Wikipedia)
+   - Entity types (Person, Place, Organization, etc.)
+   - Official URLs and images
+   - Machine IDs (MIDs) for further research
+3. **Filter by type** when users want specific kinds of entities
+4. **Compare entities** by searching for multiple items
+5. **Verify facts** by cross-referencing Knowledge Graph data
+
+## Search Guidelines
+
+- When users ask about a topic, automatically search the Knowledge Graph
+- For ambiguous queries, return multiple results and ask which one they meant
+- Include relevance scores to show confidence
+- Cite the Knowledge Graph as your source
+- Provide both brief summaries and detailed information when available
+- If no results found, suggest alternative search terms
+
+## Response Style
+
+- Be informative but conversational
+- Present data in a clear, organized format
+- Use bullet points for key facts
+- Include images URLs when available
+- Cite Machine IDs (MIDs) for reference
+- Offer to search for related entities
+
+## Important Notes
+
+- Knowledge Graph contains verified, authoritative information
+- Data is primarily sourced from Wikipedia and official sources
+- Not all entities are in the Knowledge Graph - if not found, explain this
+- Relevance scores indicate confidence in results
+- Machine IDs (MIDs) are unique identifiers (format: /m/xxxxx)
+
+═══════════════════════════════════════════════════════════════
+📋 STEP 3: CONVERSATION STARTERS
+═══════════════════════════════════════════════════════════════
+
+Who is Marie Curie?
+
+Tell me about the Eiffel Tower
+
+Compare Python and JavaScript programming languages
+
+Find famous scientists from the 20th century
+
+═══════════════════════════════════════════════════════════════
+📋 STEP 4: ACTIONS SCHEMA (Go to "Actions" → "Create new action")
+═══════════════════════════════════════════════════════════════
+
+IMPORTANT: Make sure to paste the FULL schema below!
+
+---START OF SCHEMA---
+
+openapi: 3.1.0
+info:
+  title: Google Knowledge Graph Search API
+  description: Search Google's Knowledge Graph for verified entity information
+  version: 1.0.0
+servers:
+  - url: https://knowledge-graph-mcp-production-65ca.up.railway.app
+    description: Production API
+paths:
+  /api/search:
+    post:
+      operationId: searchKnowledgeGraph
+      summary: Search for entities in Google's Knowledge Graph
+      description: Search for people, places, organizations, events, and concepts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: Search query (e.g., "Albert Einstein", "Eiffel Tower")
+                limit:
+                  type: integer
+                  description: Maximum results (1-500)
+                  default: 5
+                  minimum: 1
+                  maximum: 500
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  description: Language codes (e.g., ["en"])
+                  default: ["en"]
+                types:
+                  type: array
+                  items:
+                    type: string
+                  description: Entity types (e.g., ["Person", "Place"])
+              required:
+                - query
+      responses:
+        '200':
+          description: Successful response with entity data
+        '500':
+          description: Server error
+  /api/lookup:
+    post:
+      operationId: lookupEntityByID
+      summary: Look up specific entities by Machine IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Machine IDs (e.g., ["/m/053_d"])
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  default: ["en"]
+              required:
+                - ids
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '500':
+          description: Server error
+
+---END OF SCHEMA---
+
+═══════════════════════════════════════════════════════════════
+✅ QUICK CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+□ Go to: https://chat.openai.com/gpts/editor
+□ Click "Create a GPT"
+□ Paste Name and Description
+□ Paste Instructions
+□ Add 4 Conversation Starters
+□ Go to "Actions" → "Create new action"
+□ Paste the full OpenAPI schema
+□ Click "Save"
+□ Test with: "Who is Marie Curie?"
+
+═══════════════════════════════════════════════════════════════
+🎯 TESTING
+═══════════════════════════════════════════════════════════════
+
+Test your GPT with these queries:
+1. "Who is Albert Einstein?"
+2. "Tell me about Tokyo"
+3. "What is Tesla the company?"
+4. "Compare Paris and London"
+5. "Find information about Python programming"
+
+═══════════════════════════════════════════════════════════════
+🔗 LINKS
+═══════════════════════════════════════════════════════════════
+
+Your API: https://knowledge-graph-mcp-production-65ca.up.railway.app
+Create GPT: https://chat.openai.com/gpts/editor
+Your Repo: https://github.com/boshify/knowledge-graph-mcp
+
+═══════════════════════════════════════════════════════════════
