@@ -198,9 +198,9 @@ function createMCPServer() {
   return server;
 }
 
-// Create transport and server
+// Create transport and server - use stateless mode for better compatibility
 const transport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: () => randomUUID(),
+  sessionIdGenerator: undefined, // Stateless mode - no session management
 });
 
 const server = createMCPServer();
