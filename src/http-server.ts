@@ -97,6 +97,8 @@ function createMCPServer() {
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    console.log('🔧 Tool called:', request.params.name);
+    console.log('📝 Arguments:', JSON.stringify(request.params.arguments));
     try {
       const { name, arguments: args } = request.params;
 
@@ -110,7 +112,9 @@ function createMCPServer() {
           limit: limit || 20,
         };
 
+        console.log('🔍 Searching Knowledge Graph...');
         const entities = await searchEntities(options);
+        console.log('✅ Found', entities.length, 'entities');
 
         const output = {
           entities: entities.map(e => {
@@ -177,6 +181,8 @@ function createMCPServer() {
 
       throw new Error(`Unknown tool: ${name}`);
     } catch (error) {
+      console.error('❌ Tool error:', error instanceof Error ? error.message : error);
+      console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
       return {
         content: [
           {
