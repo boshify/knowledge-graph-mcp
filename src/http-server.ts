@@ -208,6 +208,12 @@ app.get('/health', (req, res) => {
 // MCP endpoint - handles both GET (SSE) and POST (messages)
 app.all('/mcp', async (req, res) => {
   console.log(`${req.method} /mcp from:`, req.headers.origin || 'unknown');
+
+  // Fix Accept header for compatibility with Claude.ai connector
+  if (!req.headers.accept || !req.headers.accept.includes('text/event-stream')) {
+    req.headers.accept = 'application/json, text/event-stream';
+  }
+
   try {
     await transport.handleRequest(req, res, req.body);
   } catch (error) {
