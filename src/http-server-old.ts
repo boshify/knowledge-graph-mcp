@@ -11,7 +11,7 @@ import cors from 'cors';
 
 const app = express();
 
-// CORS configuration
+// CORS configuration for Claude.ai
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -23,10 +23,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Store active transports by session ID
-const transports = new Map<string, SSEServerTransport>();
-
-// Create MCP server with handlers
+// Create a single MCP server instance
 function createMCPServer() {
   const server = new Server(
     {
@@ -201,54 +198,28 @@ app.get('/health', (req, res) => {
 
 // SSE endpoint for MCP
 app.get('/sse', async (req, res) => {
-  const sessionId = Math.random().toString(36).substring(7);
-  console.log(`New SSE connection [${sessionId}] from:`, req.headers.origin || 'unknown');
+  console.log('New SSE connection from:', req.headers.origin || 'unknown');
 
   try {
     const server = createMCPServer();
-    const transport = new SSEServerTransport(`/message/${sessionId}`, res);
-
-    // Store transport for this session
-    transports.set(sessionId, transport);
-
+    const transport = new SSEServerTransport('/message', res);
     await server.connect(transport);
-    console.log(`MCP server connected via SSE [${sessionId}]`);
+    console.log('MCP server connected via SSE');
 
-    // Clean up on close
+    // Keep connection alive
     req.on('close', () => {
-      console.log(`SSE connection closed [${sessionId}]`);
-      transports.delete(sessionId);
+      console.log('SSE connection closed');
     });
   } catch (error) {
-    console.error(`Error setting up SSE connection [${sessionId}]:`, error);
-    transports.delete(sessionId);
+    console.error('Error setting up SSE connection:', error);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to establish SSE connection' });
     }
   }
 });
 
-// Message endpoint for client requests - route to appropriate transport
-app.post('/message/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
-  console.log(`Received message for session [${sessionId}]:`, JSON.stringify(req.body).substring(0, 100));
-
-  const transport = transports.get(sessionId);
-  if (!transport) {
-    console.error(`No transport found for session [${sessionId}]`);
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  try {
-    // Forward the message to the transport
-    await transport.handlePostMessage(req, res);
-  } catch (error) {
-    console.error(`Error handling message for session [${sessionId}]:`, error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to handle message' });
-    }
-  }
-});
+// Note: The SSEServerTransport handles the /message endpoint internally
+// We don't need to define it here - the transport sets it up automatically
 
 // REST API endpoints as fallback
 app.post('/api/search', async (req, res) => {

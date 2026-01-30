@@ -10,24 +10,21 @@ import express from 'express';
 import cors from 'cors';
 
 const app = express();
-
-// CORS configuration
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Store active transports by session ID
-const transports = new Map<string, SSEServerTransport>();
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'google-knowledge-graph-mcp' });
+});
 
-// Create MCP server with handlers
-function createMCPServer() {
+// SSE endpoint for MCP
+app.get('/sse', async (req, res) => {
+  console.log('New SSE connection established');
+
+  const transport = new SSEServerTransport('/message', res);
   const server = new Server(
     {
       name: 'google-knowledge-graph-mcp',
@@ -174,6 +171,7 @@ function createMCPServer() {
               text: JSON.stringify(output, null, 2),
             },
           ],
+          isError: false,
         };
       }
 
@@ -191,63 +189,14 @@ function createMCPServer() {
     }
   });
 
-  return server;
-}
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'google-knowledge-graph-mcp' });
+  await server.connect(transport);
+  console.log('SSE transport connected');
 });
 
-// SSE endpoint for MCP
-app.get('/sse', async (req, res) => {
-  const sessionId = Math.random().toString(36).substring(7);
-  console.log(`New SSE connection [${sessionId}] from:`, req.headers.origin || 'unknown');
-
-  try {
-    const server = createMCPServer();
-    const transport = new SSEServerTransport(`/message/${sessionId}`, res);
-
-    // Store transport for this session
-    transports.set(sessionId, transport);
-
-    await server.connect(transport);
-    console.log(`MCP server connected via SSE [${sessionId}]`);
-
-    // Clean up on close
-    req.on('close', () => {
-      console.log(`SSE connection closed [${sessionId}]`);
-      transports.delete(sessionId);
-    });
-  } catch (error) {
-    console.error(`Error setting up SSE connection [${sessionId}]:`, error);
-    transports.delete(sessionId);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to establish SSE connection' });
-    }
-  }
-});
-
-// Message endpoint for client requests - route to appropriate transport
-app.post('/message/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
-  console.log(`Received message for session [${sessionId}]:`, JSON.stringify(req.body).substring(0, 100));
-
-  const transport = transports.get(sessionId);
-  if (!transport) {
-    console.error(`No transport found for session [${sessionId}]`);
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  try {
-    // Forward the message to the transport
-    await transport.handlePostMessage(req, res);
-  } catch (error) {
-    console.error(`Error handling message for session [${sessionId}]:`, error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to handle message' });
-    }
-  }
+// Message endpoint for client requests
+app.post('/message', async (req, res) => {
+  // This endpoint is handled by the SSE transport
+  res.status(200).send();
 });
 
 // REST API endpoints as fallback
